@@ -5,7 +5,7 @@
  * @license http://opensource.org/licenses/BSD-3-Clause
  */
 
-namespace creocoder\behaviors;
+namespace yujin1st\behaviors;
 
 use yii\base\Behavior;
 use yii\base\Event;
@@ -20,7 +20,7 @@ use yii\db\Exception;
 class NestedSet extends Behavior
 {
 	/**
-	 * @var ActiveRecord the owner of this behavior.
+	 * @var ActiveRecord | NestedSet the owner of this behavior.
 	 */
 	public $owner;
 	/**
@@ -43,6 +43,18 @@ class NestedSet extends Behavior
 	 * @var string
 	 */
 	public $levelAttribute = 'level';
+	/**
+	 * @var string either string or null (disable feature)
+	 */
+	public $parentIdAttribute = null;
+	/**
+	 * @var string value, that is set for root elements
+	 */
+	public $emptyParentAttributeValue = null;
+	/**
+	 * @var string
+	 */
+	public $parentPrimaryKeyAttribute = 'id';
 	/**
 	 * @var bool
 	 */
@@ -355,7 +367,8 @@ class NestedSet extends Behavior
 
 	/**
 	 * Prepends target to node as first child.
-	 * @param ActiveRecord $target the target.
+	 *
+	 * @param ActiveRecord | NestedSet $target the target.
 	 * @param boolean $runValidation whether to perform validation.
 	 * @param array $attributes list of attributes.
 	 * @return boolean whether the prepending succeeds.
@@ -371,7 +384,8 @@ class NestedSet extends Behavior
 
 	/**
 	 * Appends node to target as last child.
-	 * @param ActiveRecord $target the target.
+	 *
+	 * @param ActiveRecord | NestedSet $target the target.
 	 * @param boolean $runValidation whether to perform validation.
 	 * @param array $attributes list of attributes.
 	 * @return boolean whether the appending succeeds.
@@ -389,7 +403,8 @@ class NestedSet extends Behavior
 
 	/**
 	 * Appends target to node as last child.
-	 * @param ActiveRecord $target the target.
+	 *
+	 * @param ActiveRecord | NestedSet $target the target.
 	 * @param boolean $runValidation whether to perform validation.
 	 * @param array $attributes list of attributes.
 	 * @return boolean whether the appending succeeds.
@@ -405,7 +420,8 @@ class NestedSet extends Behavior
 
 	/**
 	 * Inserts node as previous sibling of target.
-	 * @param ActiveRecord $target the target.
+	 *
+	 * @param ActiveRecord | NestedSet $target the target.
 	 * @param boolean $runValidation whether to perform validation.
 	 * @param array $attributes list of attributes.
 	 * @return boolean whether the inserting succeeds.
@@ -423,7 +439,8 @@ class NestedSet extends Behavior
 
 	/**
 	 * Inserts node as next sibling of target.
-	 * @param ActiveRecord $target the target.
+	 *
+	 * @param ActiveRecord | NestedSet $target the target.
 	 * @param boolean $runValidation whether to perform validation.
 	 * @param array $attributes list of attributes.
 	 * @return boolean whether the inserting succeeds.
@@ -441,7 +458,8 @@ class NestedSet extends Behavior
 
 	/**
 	 * Move node as previous sibling of target.
-	 * @param ActiveRecord $target the target.
+	 *
+	 * @param ActiveRecord | NestedSet $target the target.
 	 * @return boolean whether the moving succeeds.
 	 */
 	public function moveBefore($target)
@@ -455,7 +473,8 @@ class NestedSet extends Behavior
 
 	/**
 	 * Move node as next sibling of target.
-	 * @param ActiveRecord $target the target.
+	 *
+	 * @param ActiveRecord | NestedSet $target the target.
 	 * @return boolean whether the moving succeeds.
 	 */
 	public function moveAfter($target)
@@ -469,7 +488,8 @@ class NestedSet extends Behavior
 
 	/**
 	 * Move node as first child of target.
-	 * @param ActiveRecord $target the target.
+	 *
+	 * @param ActiveRecord | NestedSet $target the target.
 	 * @return boolean whether the moving succeeds.
 	 */
 	public function moveAsFirst($target)
@@ -483,7 +503,8 @@ class NestedSet extends Behavior
 
 	/**
 	 * Move node as last child of target.
-	 * @param ActiveRecord $target the target.
+	 *
+	 * @param ActiveRecord | NestedSet $target the target.
 	 * @return boolean whether the moving succeeds.
 	 */
 	public function moveAsLast($target)
@@ -546,6 +567,10 @@ class NestedSet extends Behavior
 				[':' . $this->rootAttribute => $this->owner->getAttribute($this->rootAttribute)]
 			);
 			$this->shiftLeftRight($right + 1, $left - $right - 1);
+
+			if ($this->parentIdAttribute) $this->owner->updateAttributes([
+				$this->parentIdAttribute => null,
+			]);
 
 			if (isset($transaction)) {
 				$transaction->commit();
@@ -698,7 +723,7 @@ class NestedSet extends Behavior
 	}
 
 	/**
-	 * @param ActiveRecord $target.
+	 * @param ActiveRecord | NestedSet $target .
 	 * @param int $key.
 	 * @param int $levelUp.
 	 * @param boolean $runValidation.
@@ -748,6 +773,13 @@ class NestedSet extends Behavior
 			$this->owner->setAttribute($this->leftAttribute, $key);
 			$this->owner->setAttribute($this->rightAttribute, $key + 1);
 			$this->owner->setAttribute($this->levelAttribute, $target->getAttribute($this->levelAttribute) + $levelUp);
+			if ($this->parentIdAttribute) {
+				$primaryKey = $this->owner->primaryKey();
+				if (!isset($primaryKey[0])) {
+					throw new Exception(get_class($this->owner) . ' must have a primary key.');
+				}
+				$this->owner->setAttribute($this->parentIdAttribute, $primaryKey);
+			}
 			$this->_ignoreEvent = true;
 			$result = $this->owner->insert(false, $attributes);
 			$this->_ignoreEvent = false;
@@ -787,6 +819,7 @@ class NestedSet extends Behavior
 		$this->owner->setAttribute($this->leftAttribute, 1);
 		$this->owner->setAttribute($this->rightAttribute, 2);
 		$this->owner->setAttribute($this->levelAttribute, 1);
+		if ($this->parentIdAttribute) $this->owner->setAttribute($this->parentIdAttribute, $this->emptyParentAttributeValue);
 
 		if ($this->hasManyRoots) {
 			$db = $this->owner->getDb();
@@ -831,6 +864,7 @@ class NestedSet extends Behavior
 				throw $e;
 			}
 		} else {
+			/** @noinspection PhpUndefinedMethodInspection  - find() return NestedSetQuery that has method "roots()" */
 			if ($this->owner->find()->roots()->exists()) {
 				throw new Exception('Can\'t create more than one root in single root mode.');
 			}
@@ -848,7 +882,7 @@ class NestedSet extends Behavior
 	}
 
 	/**
-	 * @param ActiveRecord $target.
+	 * @param ActiveRecord | NestedSet $target .
 	 * @param int $key.
 	 * @param int $levelUp.
 	 * @throws Exception.
@@ -888,6 +922,10 @@ class NestedSet extends Behavior
 		}
 
 		try {
+			if ($this->parentIdAttribute) $this->owner->updateAttributes([
+				$this->parentIdAttribute => $target->getPrimaryKey(),
+			]);
+
 			$left = $this->owner->getAttribute($this->leftAttribute);
 			$right = $this->owner->getAttribute($this->rightAttribute);
 			$levelDelta = $target->getAttribute($this->levelAttribute) - $this->owner->getAttribute($this->levelAttribute)
@@ -1005,7 +1043,7 @@ class NestedSet extends Behavior
 		$delta = $left - $right - 1;
 
 		foreach (self::$_cached[get_class($this->owner)] as $node) {
-			/** @var $node ActiveRecord */
+			/** @var $node ActiveRecord | NestedSet */
 			if ($node->getIsNewRecord() || $node->getIsDeletedRecord()) {
 				continue;
 			}
@@ -1043,7 +1081,7 @@ class NestedSet extends Behavior
 	private function correctCachedOnAddNode($key)
 	{
 		foreach (self::$_cached[get_class($this->owner)] as $node) {
-			/** @var $node ActiveRecord */
+			/** @var $node ActiveRecord | NestedSet */
 			if ($node->getIsNewRecord() || $node->getIsDeletedRecord()) {
 				continue;
 			}
@@ -1092,7 +1130,7 @@ class NestedSet extends Behavior
 		$delta2 = $key - $left;
 
 		foreach (self::$_cached[get_class($this->owner)] as $node) {
-			/** @var $node ActiveRecord */
+			/** @var $node ActiveRecord | NestedSet */
 			if ($node->getIsNewRecord() || $node->getIsDeletedRecord()) {
 				continue;
 			}
@@ -1171,7 +1209,7 @@ class NestedSet extends Behavior
 		$delta3 = $left - $right - 1;
 
 		foreach (self::$_cached[get_class($this->owner)] as $node) {
-			/** @var $node ActiveRecord */
+			/** @var $node ActiveRecord | NestedSet */
 			if ($node->getIsNewRecord() || $node->getIsDeletedRecord()) {
 				continue;
 			}
