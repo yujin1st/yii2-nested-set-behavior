@@ -774,8 +774,8 @@ class NestedSet extends Behavior
 			$this->owner->setAttribute($this->rightAttribute, $key + 1);
 			$this->owner->setAttribute($this->levelAttribute, $target->getAttribute($this->levelAttribute) + $levelUp);
 			if ($this->parentIdAttribute) {
-				$primaryKey = $this->owner->primaryKey();
-				if (!isset($primaryKey[0])) {
+				$primaryKey = $target->getPrimaryKey();
+				if (!isset($primaryKey)) {
 					throw new Exception(get_class($this->owner) . ' must have a primary key.');
 				}
 				$this->owner->setAttribute($this->parentIdAttribute, $primaryKey);
@@ -923,7 +923,7 @@ class NestedSet extends Behavior
 
 		try {
 			if ($this->parentIdAttribute) $this->owner->updateAttributes([
-				$this->parentIdAttribute => $target->getPrimaryKey(),
+				$this->parentIdAttribute => $levelUp == 0 ? $target->getAttribute($this->parentIdAttribute) : $target->getPrimaryKey(),
 			]);
 
 			$left = $this->owner->getAttribute($this->leftAttribute);
