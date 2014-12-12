@@ -3,6 +3,8 @@ Nested Set behavior for Yii 2
 
 This extension allows you to get functional for nested set trees.
 
+This extension supports **parentId** attribute updating - this is main difference from original creocoder's version
+
 Installation
 ------------
 
@@ -11,13 +13,13 @@ The preferred way to install this extension is through [composer](http://getcomp
 Either run
 
 ```sh
-php composer.phar require creocoder/yii2-nested-set-behavior "*"
+php composer.phar require yujin1st/yii2-nested-set-behavior "*"
 ```
 
 or add
 
 ```json
-"creocoder/yii2-nested-set-behavior": "*"
+"yujin1st/yii2-nested-set-behavior": "*"
 ```
 
 to the require section of your `composer.json` file.
@@ -76,6 +78,11 @@ There are two ways this behavior can work: one tree per table and multiple trees
 per table. The mode is selected based on the value of `hasManyRoots` option that
 is `false` by default meaning single tree mode. In multiple trees mode you can
 set `rootAttribute` option to match existing field in the table storing the tree.
+
+You can specify `parentId` attribute name - and behaviour will update this property while you insert or move the record.
+This feature doesn't affect to behaviour at all (and is switched off by default),  
+but seems convenient way to get parent's primary key without additional queries.
+   
 
 Selecting from a tree
 ---------------------
@@ -417,4 +424,27 @@ for ($i = $level; $i; $i--) {
 	echo Html::endTag('li') . "\n";
 	echo Html::endTag('ul') . "\n";
 }
+```
+
+### Building two level tree using **parentId** attribute
+
+```php
+$categories = Category::find()->andWhere('level<3')->all();
+$list = [];
+
+foreach ($categories as $category)
+{
+  // if record is root it may have the **null** value (for correct foreign keys)
+  // but you can specify this in  **emptyParentAttributeValue** property 
+  $list[$category->parentId ? $category->parentId : 0][] = $category;
+}
+
+foreach ($list[0] as $category)
+{
+	echo $category->title;
+	foreach ($list[$category->id] as $subCategory){
+		echo ' - ' . $subCategory->title;
+	}
+}
+
 ```

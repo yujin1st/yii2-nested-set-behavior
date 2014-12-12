@@ -13,6 +13,7 @@ use yii\db\ActiveQuery;
 
 /**
  * @author Alexander Kochetov <creocoder@gmail.com>
+ * @author Evgeniy Bobrov <yujin1st@gmail.com>
  */
 class NestedSetQuery extends Behavior
 {

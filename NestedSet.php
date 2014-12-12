@@ -16,6 +16,7 @@ use yii\db\Exception;
 
 /**
  * @author Alexander Kochetov <creocoder@gmail.com>
+ * @author Evgeniy Bobrov <yujin1st@gmail.com>
  */
 class NestedSet extends Behavior
 {
